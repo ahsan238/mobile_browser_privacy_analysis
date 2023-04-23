@@ -1,11 +1,17 @@
-# mobile_browser_privacy_analysis
 
----
-tags: Mobile Browser
----
 # Mobile Browser Analysis
 
-This document describes the analysis of the mobile browser
+## Research Paper
+This document describes the analysis of the mobile browser. You can read more about the analysis in our [paper](https://anupamdas.org/paper/CODASPY2023.pdf). Consider citing our work in your paper:
+``` tex
+@inproceedings{ahsan-codaspy2023,
+		author  = {Ahsan Zafar and Anupam Das},
+		title   = {Comparative Privacy Analysis of Mobile Browsers},
+		booktitle = {Proceedings of the 13th ACM Conference on Data and Application Security and Privacy (CODASPY)},
+		year ={2023},
+		doi = {10.1145/3411763.3451633}
+	}
+```
 
 ## Data Methodology
 
