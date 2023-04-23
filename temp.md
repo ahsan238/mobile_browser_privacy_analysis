@@ -12,13 +12,6 @@ This document describes the analysis of the mobile browser
 
 
 ### Overview
-Our data collection methodology borrows crawling design from [OmniCrawl](https://github.com/OmniCrawl/OmniCrawl). We assume that the readers are capable of insantiating the OmniCrawl setup using their desired browser and can crawl the web using the documentation provided therein.
-
-The OmniCrawl crawler produces two main files with each crawl:
-1. Mitmdump file (request/responses)
-2. API usage file (dynamic execution of APIs)
-
-Additionally, you can find our enhanced tracking heuristics in  ```analysis_scripts/prelim.ipynb```
 
 We are using 6 browsers in this privacy study:
 
@@ -44,58 +37,93 @@ Additionally, it shows the base size of a valid file logged through mitmproxy. F
 
 
 
-
+I have manually checked some of the files on Safari data, valid and invalid, and there seems to be no base file size that can differentiate between valid and invalid. Most likely this is because in each iteration (crawl of a website), the Safari browser seems to be making random requests to the server (or OS level requests). We need to filter out invalid websites from the Android browsers and purge them from Safari. Next, we will need to load the remaining mitm dump files and purge the ones that are not loaded properly. Lastly, we need to look at API logs that were created and check which websites logs were not loaded properly. These three steps will purge all the unecessary website data from our browsers. We should then perform analysis only on those website data that are left behind.
 
 
 
 ### Data Cleaning
-
-While preliminary cleansing relies on file size and does the basic job for us, we rely on programmatically purging dump files that fail to generate website data.
 
 With regards to the crawled data, there are two files that are relevant to our analysis.
 
 1. Mitmproxy dump file (e.g. google.com)
 2. API log files (e.g. google.com.log.sqlite3)
 
+Since we are interested in only the valid website data for our analysis, we keep these two files in consideration for data cleaning process. More specifically, we have to find out a way to ensure that both the Mitmproxy dump file and the API log file are valid (by valid, I mean they are populated). If either of the two files are incomplete or corrupted, we may not be able to produce a fair comparison between the browsers. 
 
 To validate an mitmdump file, we look for a first-party response (200-399) in the dump file. If such a response exists, we can confirm that the website was indeed visited. 
 
 The next step is to make sure that we have the valid API log files. This is simple as the base size file of a API log file is 8KB. If the browsers fails to get any valid response while visiting a website, the skeleton API log file that is created is 8KB minimum. This implies that any instance of a crawl which produced a file size that is greater than 8KB is most likely a valid file. Therefore, just by looking at this file size too, we can differentiate between valid and invalid file sizes.
 
-Both cleaning steps are provided in `validDumpFiles.py`
+We use both these methods to find invalid files and take their unions. The results are following:
+
+| Browser    | Valid |
+| ---------- | ----- |
+| Chrome     | 9358  |
+| Brave      | 9074  |
+| Firefox    | 8756  |
+| Focus      | 7100  |
+| DuckDuckGo | 9217  |
+| Safari     | 8609  |
+
+Note: These results were produced using the following script: ``/home/azafar2/mobile_analysis/scripts/validDumpFiles.py``. These readings were taken at *04/26/2022:7:28AM*
+
+
+
+#### URL Categories
+
+About 6798 domains were found to be common at this point. The figure below shows the categories of these domains
+
+![Common Domains Category 2022-04-26 at 7.54.15 AM](/Users/ahsanzafar/Desktop/Common Domains Category 2022-04-26 at 7.54.15 AM.png)
+
+It is possible that the total counts shown in this plot rise beyond the number of common domains. This is because each domain can have more than one category.
+
+#### Content
+
+I also took the first 1000 common requests and looked at the top content. Results shown in the table below.
+
+| Browser | Image | javascript | html  | Json  | css  | font | plain | video | Audio | octet-stream | Xml  | Other |
+| ------- | ----- | ---------- | ----- | ----- | ---- | ---- | ----- | ----- | ----- | ------------ | ---- | ----- |
+| Safari  | 50468 | 31979      | 12866 | 8994  | 5937 | 3609 | 4217  | 792   | 32    | 1185         | 660  | 523   |
+| Chrome  | 53064 | 32222      | 16882 | 8985  | 6127 | 3031 | 5510  | 288   | 25    | 1124         | 218  | 271   |
+| Brave   | 50883 | 32188      | 16430 | 9694  | 6062 | 3011 | 4471  | 318   | 26    | 1058         | 225  | 328   |
+| Firefox | 45293 | 33463      | 13014 | 11406 | 6150 | 3843 | 4182  | 260   | 25    | 3028         | 264  | 847   |
+| Focus   | 46808 | 30943      | 16614 | 14092 | 5740 | 3366 | 4462  | 276   | 52    | 2115         | 276  | 365   |
+| DDG     | 38230 | 18291      | 6944  | 5729  | 4335 | 2981 | 975   | 246   | 20    | 911          | 47   | 507   |
 
 
 
 ## Analysis
 
+#### Research Plan
 
-
-The focus here is going to be the results derived from analysis on the mitmdump files and the API log files. The following analysis are performed:
+The focus of this section is going to be the results derived from analysis on the mitmdump files and the API log files. Note that the list is non-exhaustive and still a work in progress. These results are performed on the top 1K website data. The following analysis are intended to be performed:
 
 1. Classification of trackers
    1. Statically compare ASTs of ground truth tracking scripts with the ones in our dataset.
-   1. Dynamic Analysis
-
-The analysis notebook can be found at `prelim.ipynb`
+   1. Dynamic Analysis (yet to be decided)
 
 2. Prevelance of trackers in crawled dataset
    1. Tracker vendors and ratio of fingerprinting trackers and prevalence of tracking scripts among all scripts
-The analysis notebook can be found at `prelim.ipynb`
 
-3. Privacy test using ground truth from EasyList, EasyPrivacy, Disconnect and WhoTracksMe
-
-The analysis scripts can be found at `prelim.ipynb`
+3. Privacy test using ground truth from EasyList, EasyPrivacy and Disconnect.
+   1. Can also do whotracksme
 
 4. Cookie analysis
-   
-   Cookie based analysis focuses on the cookies that were set by first and third party cookies. Note that there are 2 primary methods that can set cookies:
-   1. JavaScript API `Cookie`
-   2. Response Header `set-cookie`
 
-   These analysis methods can be found in `analysis_scripts/cookie_info.py`
-   
+   1. Refer to [this](https://www3.cs.stonybrook.edu/~mikepo/papers/firstparty.www21.pdf) paper
 
+5. Web Cloaking - script behavior changes across browser
 
+   1. Comparing the dynamic execution pattern of fingerprintinig APIs in common scripts
+
+   2. Compare Jaccard Similarity Index among scripts (from various browser) to show change in behavior
+
+   3. Use prominence metric to show the impact of cloacking scripts based on the sites they appear on. To give a concrete example, ``google-analytics.js`` is an analytic script that appears on top 90 domains in Tranco's list. To establish it's prominence, we aggregate the prominence value of hosting domains (domains where this script was executed).
+
+      Prominence metric is as follows:
+      $$
+      Prominence(t) = \sum\nolimits_{edge(s,t)} = \frac{1}{rank(s)}
+      $$
       
 
 
@@ -138,7 +166,7 @@ There are two kinds of JavaScripts in our dataset. The following code snippets w
           return code
       ````
 
-​	Note: these snippets are from ``analysis_scripts/extractJs.py``
+​	Note: these snippets are from ``/home/azafar2/mobile_analysis/scripts/extractJs.py``
 
 The name structure for these JS files is as follows:
 
@@ -248,6 +276,24 @@ with open('proxylog','rb') as fp:
 
 
 
+#### BackLog
+
+1. Loggin execution context of known trackers by embedding those scripts in an empty HTML and logging the API Calls. That is your ground truth (for Dynamic Analysis) and then you can compare it with the logs of scripts found in the wild.
+
+2. Do dynamically injected inline scripts get recorded on mitmproxy log? To test this, embed the following code in an empty HTML and test?
+
+   ````javascript
+   (function() {
+       var hostName = window.location.host;
+       if (!((hostName.indexOf('content-') >= 0) || (hostName.indexOf('pre-production') >= 0) || (hostName.indexOf('localhost') >= 0))) {
+           document.write('<script src="https:\/\/cdn-ukwest.onetrust.com\/scripttemplates\/otSDKStub.js" data-document-language="true" type="text\/javascript" charset="UTF-8" data-domain-script="2a76c653-4097-454f-9172-b4ab95061efd"><\/script>');
+       }
+   })();
+   ````
+
+3. How is our paper different? Make a table that shows previous works and compares the core findings/analysis done in each paper and compare it with what you have done. Something like [this](https://dl.acm.org/doi/pdf/10.1145/2976749.2978313).
+
+### 
 
 
 
@@ -256,17 +302,9 @@ To my knowledge, there are two options for automation on Safari.
 
 1. The first option is to use **safaridriver** in MacOS to send REST API requests to the iOS device. Basically, since iOS 13, a remote automation feature was introduced in Safari that lets it be operated through safari webdriver from a MacOS. [This process](https://developer.apple.com/documentation/webkit/testing_with_webdriver_in_safari) is another selenium-based automation method for Safari. Currently, I have been testing this method but I have been running into a problem: even when I enable remote automation on Safari, the webdriver sends an error message that the remote automation is switched off. There is [an issue on GitHub](https://github.com/sitespeedio/sitespeed.io/issues/3160) that discusses this.
     
+    *I will also highlight an obvious shortfall of this method is that it is detectable by websites and therefore may not be a recommended way.*
 
 2. The second method involves using Appium along with SafariLauncher to automate the safari interactions. The purpose of SafariLauncher is to launch the browser on your app. Thereafter, Appium takes over the interactions between the browser and your client desktop. This method seems clean but I have run into a problem. In order to install SafariLauncher on your iOS device, you need to sign the binary of the app inside XCode. Now this is trivial if you have a developer credential however, it seems that with the developer profile that latest XCode manages, it won't allow the binary to be signed. Therefore, the build of the SafariLauncher fails.
-
-We use the second method for the paper and the crawler script can be found at `crawler_scripts/safariCrawler.py`
-
-
-### Android Crawl
-For android, we use adb shell to automate user interactions to emulate organic web crawls. The process is simple and easy to follow as outlined in `crawler_scripts/client.py`
-
-### Server
-Additionally, we provide a server script that is initiates mitmproxy connections and gathers data. We assume that the users are able to leverage OmniCrawl as it also captures API executions. The server script can be found as `crawler_scripts/client.py`
 
 
 
